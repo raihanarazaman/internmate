@@ -7,8 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 class Internship extends Model
 {
     protected $fillable = [
-        'company_id', 'job_name', 'course_required', 'min_cgpa',
-        'location', 'duration', 'hostel_provided', 'allowance'
+        'company_id',
+        'job_name',
+        'position_title',
+        'description',
+        'job_scope',
+        'requirements',
+        'course_required',
+        'min_cgpa',
+        'location',
+        'work_type',
+        'duration',
+        'allowance',
+        'hostel_provided',
     ];
 
     public function company()

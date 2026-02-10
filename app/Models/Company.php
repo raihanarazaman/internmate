@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Company extends Model
 {
     protected $fillable = [
-        'email', 'company_name', 'location', 'password'
+        'company_email', 'company_name', 'location',  'user_id',  
     ];
 
     public function internships()

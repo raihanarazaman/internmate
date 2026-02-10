@@ -1,32 +1,33 @@
 <!-- Notifications -->
-@if(isset($notifications) && $notifications->count())
-    <div class="mb-6">
-        @foreach($notifications as $notif)
-            <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-2 rounded">
-                <div class="flex justify-between">
-                    <span>{{ $notif->message }}</span>
-                    <form method="POST" action="{{ route('notifications.mark-read', $notif->id) }}" class="inline">
-                        @csrf
-                        @method('PUT')
-                        <button type="submit" class="text-sm underline">Mark as read</button>
-                    </form>
-                </div>
-            </div>
-        @endforeach
-    </div>
-@endif
+
 <x-app-layout>
     <div class="py-12" style="background-color: #f0fdf4;">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-
+    @if ($errors->any())
+        <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                </svg>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-red-800 mb-1">Please fix the following errors:</p>
+                    <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
             <!-- Profile Section -->
             <div class="bg-white rounded-lg shadow p-6 mb-6">
                 <h2 class="text-lg font-semibold mb-4">Your Profile</h2>
-                <p><strong>ID:</strong> {{ session('student_id') }}</p>
-                <p><strong>Name:</strong> {{ session('student_name') }}</p>
-                <p><strong>Course:</strong> {{ session('course') }}</p>
-                <p><strong>CGPA:</strong> {{ session('cgpa') }}</p>
-                <p><strong>Interests:</strong> {{ session('interests') }}</p>
+                <p><strong>ID:</strong> {{ $student->student_id }}</p>
+                <p><strong>Name:</strong> {{ $student->full_name }}</p>
+                <p><strong>Course:</strong> {{ $student->course }}</p>
+                <p><strong>CGPA:</strong> {{ $student->cgpa ?? '—' }}</p>
+                <p><strong>Interests:</strong> {{ $student->interests ?? '—' }}</p>
 
                 <a href="{{ route('student.profile') }}" class="mt-4 inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-md transition">
                     Edit Profile
@@ -120,7 +121,7 @@
                                 @if($hasApplied)
                                     <span class="px-3 py-1 bg-gray-200 text-gray-600 text-sm rounded-md">Applied</span>
                                 @else
-                                    <form method="POST" action="{{ route('applications.store') }}" class="inline">
+                                    <form method="POST" action="{{ route('student.applications.store') }}" class="inline">
                                         @csrf
                                         <input type="hidden" name="internship_id" value="{{ $job->id }}">
                                         <button type="submit"
@@ -140,6 +141,52 @@
         @endif
     @endif
 </div>
+
+@if(isset($companyApprovedApplications) && $companyApprovedApplications->count())
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <h2 class="text-lg font-semibold mb-4">
+            🎉 Internship Offers (Company Approved)
+        </h2>
+
+        <div class="space-y-4">
+            @foreach($companyApprovedApplications as $application)
+                <div class="border rounded-lg p-4 flex justify-between items-center">
+                    <div>
+                        <p class="font-semibold text-gray-800">
+                            {{ $application->internship->job_name }}
+                        </p>
+                        <p class="text-sm text-gray-600">
+                            Company: {{ $application->internship->company->company_name }}
+                        </p>
+                        <p class="text-sm text-gray-600">
+                            Location: {{ $application->internship->location }}
+                        </p>
+                        <p class="text-sm mt-1">
+                            Status:
+                            <span class="text-green-600 font-medium">
+                                Company Approved
+                            </span>
+                        </p>
+                    </div>
+
+                    <form
+                        method="POST"
+                        action="{{ route('student.applications.submit', $application->id) }}"
+                        onsubmit="return confirm('Submit this offer to admin for final approval?')"
+                    >
+                        @csrf
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow transition"
+                        >
+                            Submit to Admin
+                        </button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    </div>
+@endif
         </div>
     </div>
 

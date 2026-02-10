@@ -3,53 +3,113 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\NotificationController;
-
-
-
+use App\Http\Controllers\Student\DashboardController as StudentDashboard;
+use App\Http\Controllers\Common\NotificationController;
+use App\Http\Controllers\Company\DashboardController as CompanyDashboard;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
+require __DIR__.'/auth.php';
 
 // Public pages
 Route::get('/', function () {
     return view('welcome');
 });
 
-// Custom Auth
-Route::get('/login', [App\Http\Controllers\Auth\SimpleAuthController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [App\Http\Controllers\Auth\SimpleAuthController::class, 'login']);
-Route::post('/logout', [App\Http\Controllers\Auth\SimpleAuthController::class, 'logout'])->name('logout');
 
-// Custom Registration
-Route::get('/register', [App\Http\Controllers\Auth\CustomRegisteredUserController::class, 'create'])->name('register');
-Route::post('/register', [App\Http\Controllers\Auth\CustomRegisteredUserController::class, 'store']);
+Route::middleware(['auth', 'role:student'])
+    ->prefix('student')
+    ->name('student.')
+    ->group(function () {
 
-// Profile Updates
-Route::put('/student/profile', [App\Http\Controllers\Student\DashboardController::class, 'updateProfile'])->name('student.update');
-Route::put('/company/profile', [App\Http\Controllers\Company\DashboardController::class, 'updateProfile'])->name('company.update');
+        Route::get('/dashboard', [StudentDashboard::class, 'index'])
+            ->name('dashboard');
 
-// Internships
-Route::post('/internships', [App\Http\Controllers\Company\DashboardController::class, 'storeInternship'])->name('internships.store');
+        Route::get('/profile', [StudentDashboard::class, 'showProfile'])
+            ->name('profile');
 
-// Applications
-Route::put('/applications/{application}', [App\Http\Controllers\Company\DashboardController::class, 'updateApplication'])->name('applications.update');
-Route::delete('/applications/{application}', [App\Http\Controllers\Company\DashboardController::class, 'destroyApplication'])->name('applications.destroy');
-Route::post('/applications/student', [App\Http\Controllers\Student\DashboardController::class, 'apply'])->name('applications.student.store');
+        Route::put('/profile', [StudentDashboard::class, 'updateProfile'])
+            ->name('update');
 
-// Dashboards
-Route::get('/student/dashboard', [App\Http\Controllers\Student\DashboardController::class, 'index'])->name('student.dashboard');
-Route::get('/company/dashboard', [App\Http\Controllers\Company\DashboardController::class, 'index'])->name('company.dashboard');
+        Route::post('/applications', [StudentDashboard::class, 'apply'])
+            ->name('applications.store');
 
-// Student profile VIEW (GET)
-Route::get('/student/profile', [App\Http\Controllers\Student\DashboardController::class, 'showProfile'])->name('student.profile');
+                Route::post(
+    '/student/applications/{application}/submit',
+    [StudentDashboard::class, 'submitToAdmin']
+)->name('applications.submit');
+    });
 
-// Student profile UPDATE (PUT)
-Route::put('/student/profile', [App\Http\Controllers\Student\DashboardController::class, 'updateProfile'])->name('student.update');
+    Route::middleware(['auth', 'role:company'])
+    ->prefix('company')
+    ->name('company.')
+    ->group(function () {
 
-
-Route::post('/ai/chat', [AiController::class, 'chat'])->name('ai.chat');
+        Route::get('/dashboard', [CompanyDashboard::class, 'index'])
+            ->name('dashboard');
 
 
-// Add this line
-Route::post('/applications', [ApplicationController::class, 'store'])->name('applications.store');
+        Route::get('/profile', [CompanyProfileController::class, 'edit'])
+            ->name('profile.edit');
 
-Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])
-    ->name('notifications.mark-read');
+        Route::put('/profile', [CompanyProfileController::class, 'update'])
+            ->name('profile.update');
+            
+        Route::get('/internships', [CompanyInternshipController::class, 'index'])
+            ->name('internships.index');
+
+        Route::get('/internships/create', [CompanyInternshipController::class, 'create'])
+            ->name('internships.create');
+
+        Route::post('/internships', [CompanyInternshipController::class, 'store'])
+            ->name('internships.store');
+
+        Route::get('/internships/{internship}/edit', [CompanyInternshipController::class, 'edit'])
+            ->name('internships.edit');
+
+        Route::put('/internships/{internship}', [CompanyInternshipController::class, 'update'])
+            ->name('internships.update');
+
+        Route::delete('/internships/{internship}', [CompanyInternshipController::class, 'destroy'])
+            ->name('internships.destroy');
+
+        Route::put('/applications/{application}', [CompanyDashboard::class, 'updateApplication'])
+            ->name('applications.update');
+
+        Route::delete('/applications/{application}', [CompanyDashboard::class, 'destroyApplication'])
+            ->name('applications.destroy');
+    });
+
+    Route::middleware(['auth', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+
+    Route::get('/dashboard', [AdminDashboard::class, 'index'])
+            ->name('dashboard');
+              Route::put('/notifications/{notification}/read', 
+            [AdminDashboard::class, 'markNotificationRead'])
+            ->name('notifications.read');
+
+        Route::put('/applications/{application}/approve', [AdminDashboard::class, 'approve'])
+            ->name('applications.approve');
+
+        Route::put('/applications/{application}/reject', [AdminDashboard::class, 'reject'])
+            ->name('applications.reject');
+        // Add admin-only routes here later
+    });
+
+    Route::middleware('auth')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])
+        ->name('notifications.index');
+
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])
+        ->name('notifications.read');
+
+    // Applications (generic)
+    Route::post('/applications', [ApplicationController::class, 'store'])
+        ->name('applications.store');
+
+    // AI Chat
+    Route::post('/ai/chat', [AiController::class, 'chat'])
+        ->name('ai.chat');
+});
+

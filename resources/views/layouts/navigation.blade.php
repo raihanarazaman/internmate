@@ -5,71 +5,85 @@
             <div class="flex items-center">
                 <!-- Logo (NO id="logo-trigger" — just normal link) -->
                 <div class="shrink-0 flex items-center">
-                    @if(session('logged_in_as') === 'student')
-                        <a href="{{ route('student.dashboard') }}">
-                            <img src="{{ asset('images/internmate-logo.jpg') }}" alt="Internmate Logo" class="h-8 w-auto">
-                        </a>
-                    @elseif(session('logged_in_as') === 'company')
-                        <a href="{{ route('company.dashboard') }}">
-                            <img src="{{ asset('images/internmate-logo.jpg') }}" alt="Internmate Logo" class="h-8 w-auto">
+                    @auth
+                        @if(auth()->user()->role === 'student')
+                            <a href="{{ route('student.dashboard') }}">
+                        @elseif(auth()->user()->role === 'company')
+                            <a href="{{ route('company.dashboard') }}">
+                        @elseif(auth()->user()->role === 'admin')
+                            <a href="{{ route('admin.dashboard') }}">
+                        @endif
+                            <img src="{{ asset('images/internmate-logo.jpg') }}" class="h-8 w-auto">
                         </a>
                     @else
                         <a href="/">
-                            <img src="{{ asset('images/internmate-logo.jpg') }}" alt="Internmate Logo" class="h-8 w-auto">
+                            <img src="{{ asset('images/internmate-logo.jpg') }}" class="h-8 w-auto">
                         </a>
-                    @endif
+                    @endauth
                 </div>
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    @if(session('logged_in_as') === 'student')
-                        <x-nav-link :href="route('student.dashboard')" :active="request()->routeIs('student.dashboard')">
-                            {{ __('Student Dashboard') }}
-                        </x-nav-link>
-                    @elseif(session('logged_in_as') === 'company')
-                        <x-nav-link :href="route('company.dashboard')" :active="request()->routeIs('company.dashboard')">
-                            {{ __('Company Dashboard') }}
-                        </x-nav-link>
-                    @endif
+                    @auth
+                        @if(auth()->user()->role === 'student')
+                            <x-nav-link :href="route('student.dashboard')">
+                                Student Dashboard
+                            </x-nav-link>
+                        @elseif(auth()->user()->role === 'company')
+                            <x-nav-link :href="route('company.dashboard')">
+                                Company Dashboard
+                            </x-nav-link>
+                        @elseif(auth()->user()->role === 'admin')
+                            <x-nav-link :href="route('admin.dashboard')">
+                                Admin Dashboard
+                            </x-nav-link>
+                        @endif
+                    @endauth
                 </div>
             </div>
 
             <!-- Welcome + Notifications + Logout (Right Side) -->
             <div class="hidden sm:flex items-center space-x-4">
-                @if(session('logged_in_as') === 'student')
-                    <span class="text-gray-700">Welcome, {{ session('student_name') }}</span>
+               @auth
+                    @if(auth()->user()->role === 'student')
+                        <span class="text-gray-700">
+                            Welcome, {{ auth()->user()->student->full_name }}
+                        </span>
 
-                    {{-- 🔔 Notification Badge --}}
-                    @php
-                        $unreadCount = \Illuminate\Support\Facades\DB::table('notifications')
-                            ->where('student_id', session('student_id'))
-                            ->where('read', false)
-                            ->count();
-                    @endphp
+          
 
-                    @if($unreadCount > 0)
-                        <a href="{{ route('student.dashboard') }}" class="relative">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z" />
-                            </svg>
-                            <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                {{ $unreadCount }}
-                            </span>
-                        </a>
+                    @elseif(auth()->user()->role === 'company')
+                        <span class="text-gray-700">
+                            Welcome, {{ auth()->user()->company->company_name }}
+                        </span>
+
+                    @elseif(auth()->user()->role === 'admin')
+                        <span class="text-gray-700">
+                            Welcome, {{ auth()->user()->admin->full_name }}
+                        </span>
                     @endif
 
-                @elseif(session('logged_in_as') === 'company')
-                    <span class="text-gray-700">Welcome, {{ session('company_name') }}</span>
-                @endif
-
-                @if(session('logged_in_as'))
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md shadow-sm transition text-sm">
+                        <button type="submit"
+                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm">
                             Logout
                         </button>
                     </form>
-                @endif
+                      <a href="{{ route('notifications.index') }}"
+                    class="relative text-sm text-gray-700 hover:text-gray-900">
+
+                        Notifications
+
+                        @if(auth()->user()->unreadNotifications->count())
+                            <span
+                                class="absolute -top-2 -right-2 bg-red-600 text-white text-xs
+                                    rounded-full px-1.5 py-0.5">
+                                {{ auth()->user()->unreadNotifications->count() }}
+                            </span>
+                        @endif
+                    </a>
+                @endauth
             </div>
 
             <!-- Hamburger (Mobile) -->
@@ -87,29 +101,40 @@
     <!-- Responsive Menu (Mobile) -->
     <div x-show="open" class="pt-4 pb-1 border-t border-gray-200 sm:hidden">
         <div class="px-4 space-y-2">
-            @if(session('logged_in_as') === 'student')
-                <a href="{{ route('student.dashboard') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Student Dashboard</a>
-                <div class="px-4 py-2 text-gray-600">Welcome, {{ session('student_name') }}</div>
-                
-                @if($unreadCount ?? 0 > 0)
-                    <div class="px-4 py-2 text-blue-600 font-medium">
-                        📣 You have {{ $unreadCount }} new notification(s)
+        @auth
+                @if(auth()->user()->role === 'student')
+                    <a href="{{ route('student.dashboard') }}" class="block px-4 py-2">
+                        Student Dashboard
+                    </a>
+                    <div class="px-4 py-2 text-gray-600">
+                        Welcome, {{ auth()->user()->student->full_name }}
+                    </div>
+
+                @elseif(auth()->user()->role === 'company')
+                    <a href="{{ route('company.dashboard') }}" class="block px-4 py-2">
+                        Company Dashboard
+                    </a>
+                    <div class="px-4 py-2 text-gray-600">
+                        Welcome, {{ auth()->user()->company->company_name }}
+                    </div>
+
+                @elseif(auth()->user()->role === 'admin')
+                    <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2">
+                        Admin Dashboard
+                    </a>
+                    <div class="px-4 py-2 text-gray-600">
+                        Welcome, {{ auth()->user()->admin->full_name }}
                     </div>
                 @endif
 
-            @elseif(session('logged_in_as') === 'company')
-                <a href="{{ route('company.dashboard') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md">Company Dashboard</a>
-                <div class="px-4 py-2 text-gray-600">Welcome, {{ session('company_name') }}</div>
-            @endif
-
-            @if(session('logged_in_as'))
                 <form method="POST" action="{{ route('logout') }}" class="px-4">
                     @csrf
-                    <button type="submit" class="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
+                    <button type="submit"
+                        class="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-md">
                         Logout
                     </button>
                 </form>
-            @endif
+            @endauth
         </div>
     </div>
 </nav>

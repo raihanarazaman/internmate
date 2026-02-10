@@ -15,7 +15,16 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-    <div class="min-h-screen {{ session()->has('logged_in_as') ? 'bg-green-50' : 'bg-gray-100' }}">
+    @php
+    $bg = match (auth()->user()->role ?? null) {
+        'student' => 'bg-green-50',
+        'company' => 'bg-blue-50',
+        'admin'   => 'bg-purple-50',
+        default   => 'bg-gray-100',
+    };
+@endphp
+
+<div class="min-h-screen {{ $bg }}">
             @include('layouts.navigation')
 
             <!-- Page Heading -->

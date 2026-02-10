@@ -4,175 +4,227 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Student as StudentModel;
+use App\Models\Student ;
+use App\Models\User ;
 use App\Models\Application;
 use App\Models\Internship;
 use Illuminate\Support\Facades\DB;
-
+use App\Notifications\ApplicationStatusChanged;
 class DashboardController extends Controller
 {
     /**
      * Display the student dashboard.
      */
-    public function index(Request $request)
-    {
-        // Get student from session
-        $studentId = session('student_id');
-        if (!$studentId) {
-            return redirect('/login');
-        }
+public function index(Request $request)
+{
+    $user = auth()->user();
 
-        $student = \App\Models\Student::where('student_id', $studentId)->first();
-        if (!$student) {
-            return redirect('/login')->withErrors(['Student not found.']);
-        }
+    if ($user->role !== 'student') {
+        abort(403);
+    }
 
-        // ✅ ALWAYS load notifications (for both approved and non-approved cases)
-        $notifications = \Illuminate\Support\Facades\DB::table('notifications')
-            ->where('student_id', $studentId)
-            ->where('read', false)
-            ->get();
+    $student = Student::where('user_id', $user->id)->first();
 
-        // Check for approved application
-        $hasApprovedApplication = \App\Models\Application::where('student_id', $student->id)
-            ->where('status', 'approved')
-            ->exists();
+    if (!$student) {
+        abort(404, 'Student profile not found');
+    }
 
-        if ($hasApprovedApplication) {
-            $approvedApplication = \App\Models\Application::with('internship.company')
-                ->where('student_id', $student->id)
-                ->where('status', 'approved')
-                ->first();
+    // Notifications
 
-            return view('student.dashboard', [
-                'internships' => collect(),
-                'hasApprovedApplication' => true,
-                'approvedInternship' => $approvedApplication,
-                'appliedInternshipIds' => collect(),
-                'notifications' => $notifications // 👈 Now defined!
+
+    // 🔒 FINAL admin approval check (ONLY lock here)
+    $hasFinalApproval = Application::where('student_id', $student->id)
+        ->where('status', 'admin_approved')
+        ->exists();
+
+    // 🟢 Company-approved offers (student must choose)
+    $companyApprovedApplications = Application::with('internship.company')
+        ->where('student_id', $student->id)
+        ->where('status', 'company_approved')
+        ->get();
+
+    // Internship filters (still visible until admin approves)
+    $query = Internship::with('company');
+
+    if ($request->filled('course')) {
+        $query->where('course_required', $request->course);
+    }
+
+    if ($request->filled('location')) {
+        $query->where('location', $request->location);
+    }
+
+    $internships = $query->get();
+
+    // Already-applied internships
+    $appliedInternshipIds = Application::where('student_id', $student->id)
+        ->pluck('internship_id');
+
+    return view('student.dashboard', [
+        'student' => $student,
+        'internships' => $internships,
+        'hasApprovedApplication' => $hasFinalApproval, // FINAL only
+        'companyApprovedApplications' => $companyApprovedApplications,
+        'appliedInternshipIds' => $appliedInternshipIds,
+    ]);
+}
+
+
+        public function showProfile()
+        {
+            $user = auth()->user();
+
+            if ($user->role !== 'student') {
+                abort(403);
+            }
+
+            $student = Student::where('user_id', $user->id)->firstOrFail();
+
+            return view('student.profile', [
+                'student' => $student,
             ]);
         }
-
-        // Build query with filters
-        $query = \App\Models\Internship::with('company');
-
-        if ($request->filled('course')) {
-            $query->where('course_required', $request->course);
-        }
-        if ($request->filled('location')) {
-            $query->where('location', $request->location);
-        }
-
-        $internships = $query->get();
-
-        $appliedInternshipIds = \App\Models\Application::where('student_id', $student->id)
-            ->pluck('internship_id');
-
-        // ✅ Pass $notifications here too
-        return view('student.dashboard', compact(
-            'internships',
-            'hasApprovedApplication',
-            'appliedInternshipIds',
-            'notifications' // 👈 Now always defined
-        ));
-    }
-
-
-    public function showProfile()
-    {
-        // Get student from session
-        $studentId = session('student_id');
-        $student = \App\Models\Student::where('student_id', $studentId)->first();
-
-        if (!$student) {
-            return redirect('/login');
-        }
-
-        return view('student.profile', [
-            'student' => $student
-        ]);
-    }
 
     /**
      * Update student profile.
      */
     public function updateProfile(Request $request)
-    {
-        // Get current student
-        $student = \App\Models\Student::where('student_id', session('student_id'))->first();
+        {
+            $user = auth()->user();
 
-        if (!$student) {
-            return redirect('/login');
+            if ($user->role !== 'student') {
+                abort(403);
+            }
+
+            $student = Student::where('user_id', $user->id)->firstOrFail();
+
+            $request->validate([
+                'student_id' => 'required|unique:students,student_id,' . $student->id,
+                'full_name'  => 'required|string|max:255',
+                'course'     => 'required|string|max:255',
+                'cgpa'       => 'nullable|numeric|min:0|max:4',
+                'interests'  => 'nullable|string|max:255',
+            ]);
+
+            $student->update([
+                'student_id' => $request->student_id,
+                'full_name'  => $request->full_name,
+                'course'     => $request->course,
+                'cgpa'       => $request->cgpa,
+                'interests'  => $request->interests,
+            ]);
+
+            return redirect()
+                ->route('student.dashboard')
+                ->with('success', 'Profile updated successfully!');
         }
-
-        // Validate
-        $request->validate([
-            'student_id' => 'required|unique:students,student_id,' . $student->id,
-            'full_name' => 'required|string|max:255',
-            'course' => 'required|string|max:255',
-            'cgpa' => 'nullable|numeric|min:0|max:4',
-            'interests' => 'nullable|string|max:255',
-        ]);
-
-        // Update database
-        $student->update([
-            'student_id' => $request->student_id,
-            'full_name' => $request->full_name,
-            'course' => $request->course,
-            'cgpa' => $request->cgpa,
-            'interests' => $request->interests,
-        ]);
-
-        // ✅ CRITICAL: Update session with NEW values
-        session([
-            'student_id' => $request->student_id,
-            'full_name' => $request->full_name,
-            'course' => $request->course,
-            'cgpa' => $request->cgpa,
-            'interests' => $request->interests,
-        ]);
-
-        // ✅ Redirect to dashboard (not back!)
-        return redirect()->route('student.dashboard')->with('success', 'Profile updated successfully!');
-    }
 
     /**
      * Apply for an internship.
      */
-    public function apply(Request $request)
-    {
-        // Validate
-        $request->validate([
-            'internship_id' => 'required|exists:internships,id',
-        ]);
+        public function apply(Request $request)
+        {
+   
+            $user = auth()->user();
 
-        // Get student
-        $student = StudentModel::where('student_id', session('student_id'))->first();
-        if (!$student) {
-            return back()->withErrors(['Student not found.']);
+            // Safety (middleware already protects this)
+            if ($user->role !== 'student') {
+                abort(403);
+            }
+
+            $request->validate([
+                'internship_id' => ['required', 'exists:internships,id'],
+            ]);
+
+            // Source of truth: student via user_id
+            $student = Student::where('user_id', $user->id)->firstOrFail();
+
+            // ❌ Block if student already has a FINAL approved internship
+            $hasFinalApproval = Application::where('student_id', $student->id)
+                ->where('status', 'admin_approved')
+                ->exists();
+
+            if ($hasFinalApproval) {
+                return back()->withErrors([
+                    'You already have an approved internship and cannot apply for another.',
+                ]);
+            }
+
+            // ❌ Block duplicate application to same internship
+            $alreadyApplied = Application::where('student_id', $student->id)
+                ->where('internship_id', $request->internship_id)
+                ->exists();
+
+            if ($alreadyApplied) {
+                return back()->withErrors([
+                    'You have already applied to this internship.',
+                ]);
+            }
+
+            // ✅ Create application (INITIAL STATE)
+            Application::create([
+                'student_id'    => $student->id,
+                'internship_id' => $request->internship_id,
+                'status'        => 'applied',
+            ]);
+
+            return back()->with('success', 'Application submitted successfully!');
         }
 
-        // Check if already applied
-        if (Application::where('student_id', $student->id)
-            ->where('internship_id', $request->internship_id)
-            ->exists()) {
-            return back()->withErrors(['You have already applied to this internship.']);
-        }
+        public function submitToAdmin(Application $application)
+{
+    $user = auth()->user();
 
-        // Check if already approved for another internship
-        if (Application::where('student_id', $student->id)
-            ->where('status', 'approved')
-            ->exists()) {
-            return back()->withErrors(['You already have an approved internship and cannot apply to others.']);
-        }
-
-        // Create application
-        Application::create([
-            'student_id' => $student->id,
-            'internship_id' => $request->internship_id,
-            'status' => 'pending',
-        ]);
-
-        return back()->with('success', 'Application submitted successfully!');
+    if ($user->role !== 'student') {
+        abort(403);
     }
+
+    $student = Student::where('user_id', $user->id)->firstOrFail();
+
+    // Ownership check
+    if ($application->student_id !== $student->id) {
+        abort(403);
+    }
+
+    // Must be company-approved
+    if ($application->status !== 'company_approved') {
+        return back()->withErrors(['This application cannot be submitted.']);
+    }
+
+    // ❌ Already has active submission
+    $hasActiveSubmission = Application::where('student_id', $student->id)
+        ->where('status', 'student_submitted')
+        ->exists();
+
+    if ($hasActiveSubmission) {
+        return back()->withErrors([
+            'You already submitted an application for admin approval.',
+        ]);
+    }
+
+    // ❌ Already finally approved
+    $hasFinalApproval = Application::where('student_id', $student->id)
+        ->where('status', 'admin_approved')
+        ->exists();
+
+    if ($hasFinalApproval) {
+        return back()->withErrors([
+            'You already have an approved internship.',
+        ]);
+    }
+
+    $application->update([
+        'status' => 'student_submitted',
+    ]);
+    $admins = User::where('role', 'admin')->get();
+
+    foreach ($admins as $admin) {
+        $admin->notify(new ApplicationStatusChanged($application));
+    }
+    // 🔔 Notify admin (later)
+    // 🔔 Notify company (optional)
+
+    return back()->with('success', 'Application submitted to admin.');
+}
+
 }
