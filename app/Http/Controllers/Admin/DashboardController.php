@@ -95,4 +95,19 @@ class DashboardController extends Controller
             abort(403);
         }
     }
+
+     public function showStudent(Student $student)
+    {
+        $user = auth()->user();
+
+        if ($user->role !== 'admin') {
+            abort(403);
+        }
+
+        $student->load([
+            'applications.internship.company',
+        ]);
+
+        return view('admin.students.show', compact('student'));
+    }
 }

@@ -13,6 +13,8 @@ use App\Http\Controllers\Student\StudentInternshipController;
 use App\Http\Controllers\Common\NotificationController;
 use App\Http\Controllers\Company\DashboardController as CompanyDashboard;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
+use App\Http\Controllers\Admin\InternshipController;
+
 require __DIR__.'/auth.php';
 
 // Public pages
@@ -109,6 +111,19 @@ Route::middleware(['auth', 'role:student'])
         'admin/internships/{internship}',
         [InternshipController::class, 'show']
     )->name('internships.show');
+
+     Route::get(
+        'admin/students/{student}',
+        [AdminDashboard::class, 'showStudent']
+    )->name('admin.students.show');
+});
+
+// COMPANY
+Route::middleware(['auth'])->group(function () {
+    Route::get(
+        'company/students/{student}',
+        [AdminDashboard::class, 'showStudent']
+    )->name('company.students.show');
         // Add admin-only routes here later
     });
 
