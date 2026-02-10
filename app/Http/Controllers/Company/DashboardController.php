@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\Company;
+use App\Models\User;
 use App\Models\Internship;
 use Illuminate\Http\Request;
 use App\Notifications\ApplicationStatusChanged;
@@ -114,35 +115,41 @@ public function updateApplication(Request $request, Application $application)
         'status' => ['required', 'in:company_approved,company_rejected'],
     ]);
 
-    // ❌ Cannot modify after admin decision
+    // ❌ Admin already decided
     if (in_array($application->status, ['admin_approved', 'admin_rejected'])) {
         return back()->withErrors([
             'This application has already been finalized by admin.',
         ]);
     }
 
-    // ❌ Prevent double company decision
+    // ❌ Company already decided
     if (in_array($application->status, ['company_approved', 'company_rejected'])) {
         return back()->withErrors([
             'You have already decided on this application.',
         ]);
     }
 
-    // ✅ Update application
+    // ✅ Update
     $application->update([
         'status' => $request->status,
         'company_decision_at' => now(),
     ]);
 
-    // 🔔 Notify student
-    $application->student->notify(
-        new ApplicationStatusChanged($application)
-    );
+    // 🔔 Notify STUDENT
+        $studentUser = $application->student->user;
 
-    // 🔔 Notify admin (database channel)
-    Notification::route('database')->notify(
-        new ApplicationStatusChanged($application)
-    );
+        $studentUser->notify(
+            new ApplicationStatusChanged($application)
+        );
+
+    // 🔔 Notify ADMINS
+    $admins = User::where('role', 'admin')->get();
+
+    foreach ($admins as $admin) {
+        $admin->notify(
+            new ApplicationStatusChanged($application)
+        );
+    }
 
     return back()->with('success', 'Application decision saved.');
 }

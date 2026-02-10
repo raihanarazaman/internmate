@@ -3,7 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\Company\CompanyApplicationController;
+use App\Http\Controllers\Company\CompanyInternshipController;
+use App\Http\Controllers\Company\CompanyProfileController;
+use App\Http\Controllers\Company\CompanyStudentController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboard;
+use App\Http\Controllers\Student\StudentInternshipController;
+
 use App\Http\Controllers\Common\NotificationController;
 use App\Http\Controllers\Company\DashboardController as CompanyDashboard;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboard;
@@ -32,10 +38,13 @@ Route::middleware(['auth', 'role:student'])
         Route::post('/applications', [StudentDashboard::class, 'apply'])
             ->name('applications.store');
 
-                Route::post(
-    '/student/applications/{application}/submit',
-    [StudentDashboard::class, 'submitToAdmin']
-)->name('applications.submit');
+        Route::post('/applications/{application}/submit',[StudentDashboard::class, 'submitToAdmin'])->name('applications.submit');
+
+        Route::get('/internships',[StudentInternshipController::class, 'index'])->name('internships.index');
+
+        Route::get('/internships/{internship}',[StudentInternshipController::class, 'show'])->name('internships.show');
+
+        Route::get('/student/applications',[StudentDashboard::class, 'applicationsIndex'])->name('applications.index');
     });
 
     Route::middleware(['auth', 'role:company'])
@@ -46,13 +55,12 @@ Route::middleware(['auth', 'role:student'])
         Route::get('/dashboard', [CompanyDashboard::class, 'index'])
             ->name('dashboard');
 
-
         Route::get('/profile', [CompanyProfileController::class, 'edit'])
             ->name('profile.edit');
 
         Route::put('/profile', [CompanyProfileController::class, 'update'])
             ->name('profile.update');
-            
+
         Route::get('/internships', [CompanyInternshipController::class, 'index'])
             ->name('internships.index');
 
@@ -71,8 +79,11 @@ Route::middleware(['auth', 'role:student'])
         Route::delete('/internships/{internship}', [CompanyInternshipController::class, 'destroy'])
             ->name('internships.destroy');
 
-        Route::put('/applications/{application}', [CompanyDashboard::class, 'updateApplication'])
-            ->name('applications.update');
+        Route::put('/applications/{application}', [CompanyDashboard::class, 'updateApplication'])->name('applications.update');
+
+        Route::get('/company/applications',[CompanyApplicationController::class, 'index'])->name('applications.index');
+
+        Route::get('/students/{student}',[CompanyStudentController::class, 'show'])->name('students.show');
 
         Route::delete('/applications/{application}', [CompanyDashboard::class, 'destroyApplication'])
             ->name('applications.destroy');
@@ -94,6 +105,10 @@ Route::middleware(['auth', 'role:student'])
 
         Route::put('/applications/{application}/reject', [AdminDashboard::class, 'reject'])
             ->name('applications.reject');
+               Route::get(
+        'admin/internships/{internship}',
+        [InternshipController::class, 'show']
+    )->name('internships.show');
         // Add admin-only routes here later
     });
 

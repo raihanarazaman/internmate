@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Internship;
 use App\Models\Company;
+use App\Notifications\ApplicationStatusChanged;
+
 class CompanyInternshipController extends Controller
 {
       public function index()
@@ -29,7 +31,7 @@ class CompanyInternshipController extends Controller
         $company = Company::where('user_id', auth()->id())->firstOrFail();
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
+            'job_name' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'duration' => 'required|string|max:100',
@@ -64,7 +66,7 @@ class CompanyInternshipController extends Controller
         $this->authorizeOwnership($internship);
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
+            'job_name' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'duration' => 'required|string|max:100',

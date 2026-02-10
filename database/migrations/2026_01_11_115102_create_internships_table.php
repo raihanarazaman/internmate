@@ -21,7 +21,7 @@ return new class extends Migration
 
             // Core info
             $table->string('job_name');                 // Short title (e.g. Internship 2026)
-            $table->string('position_title');           // Backend Developer Intern
+            $table->string('position');           // Backend Developer Intern
             $table->text('description');                // Overview
             $table->text('job_scope');                  // Responsibilities
             $table->text('requirements')->nullable();   // Skills

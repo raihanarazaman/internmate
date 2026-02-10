@@ -37,7 +37,7 @@
                             @foreach($internships as $internship)
                                 <tr class="border-b hover:bg-gray-50">
                                     <td class="p-4 font-medium text-gray-800">
-                                        {{ $internship->title }}
+                                        {{ $internship->job_name }}
                                     </td>
 
                                     <td class="p-4 text-gray-600">

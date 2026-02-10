@@ -9,7 +9,7 @@ class Internship extends Model
     protected $fillable = [
         'company_id',
         'job_name',
-        'position_title',
+        'position',
         'description',
         'job_scope',
         'requirements',
@@ -31,4 +31,5 @@ class Internship extends Model
     {
         return $this->hasMany(Application::class);
     }
+    
 }

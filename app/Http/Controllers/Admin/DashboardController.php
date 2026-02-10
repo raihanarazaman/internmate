@@ -6,37 +6,46 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Application;
 use App\Models\Admin;
+use App\Models\Student;
 use App\Notifications\ApplicationStatusChanged;
 use Illuminate\Support\Facades\Notification;
 class DashboardController extends Controller
 {
     public function index()
-    {
-        $user = auth()->user();
+{
+    $user = auth()->user();
 
-        if ($user->role !== 'admin') {
-            abort(403);
-        }
-
-        $admin = Admin::where('user_id', $user->id)->firstOrFail();
-
-        // 🔔 Applications waiting for admin decision
-        $applications = Application::with([
-                'student',
-                'internship.company'
-            ])
-            ->where('status', 'student_submitted')
-            ->latest()
-            ->get();
-
-        // 🔔 Admin notifications (Laravel)
-        $notifications = $admin->unreadNotifications;
-
-        return view('admin.dashboard', compact(
-            'applications',
-            'notifications'
-        ));
+    if ($user->role !== 'admin') {
+        abort(403);
     }
+
+    // 🔔 Notifications
+    $notifications = $user->unreadNotifications;
+
+    // 👩‍🎓 ALL students (even those without applications)
+    $students = Student::withCount([
+        'applications',
+        'applications as admin_approved_count' => function ($q) {
+            $q->where('status', 'admin_approved');
+        }
+    ])->get();
+
+    // 📄 Applications SUBMITTED by students for admin approval
+    $applications = Application::with([
+        'student',
+        'internship.company',
+    ])
+        ->where('status', 'student_submitted')
+        ->latest()
+        ->get();
+
+    return view('admin.dashboard', compact(
+        'students',
+        'applications',
+        'notifications'
+    ));
+}
+
 
     public function approve(Application $application)
     {
