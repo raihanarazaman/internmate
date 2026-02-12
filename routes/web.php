@@ -116,6 +116,9 @@ Route::middleware(['auth', 'role:student'])
         'admin/students/{student}',
         [AdminDashboard::class, 'showStudent']
     )->name('admin.students.show');
+
+    Route::put('admin/internships/{internship}/approve', [AdminDashboard::class, 'approveInternship'])->name('internships.approve');
+Route::put('admin/internships/{internship}/reject', [AdminDashboard::class, 'approveInternship'])->name('internships.reject');
 });
 
 // COMPANY

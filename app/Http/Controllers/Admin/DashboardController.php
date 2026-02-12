@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Application;
 use App\Models\Admin;
 use App\Models\Student;
+use App\Models\Internship;
+use App\Notifications\InternshipStatusChanged;
 use App\Notifications\ApplicationStatusChanged;
 use Illuminate\Support\Facades\Notification;
 class DashboardController extends Controller
@@ -22,15 +24,15 @@ class DashboardController extends Controller
     // 🔔 Notifications
     $notifications = $user->unreadNotifications;
 
-    // 👩‍🎓 ALL students (even those without applications)
+    // 👩‍🎓 ALL students (even without applications)
     $students = Student::withCount([
         'applications',
         'applications as admin_approved_count' => function ($q) {
             $q->where('status', 'admin_approved');
         }
-    ])->get();
+    ])->latest()->get();
 
-    // 📄 Applications SUBMITTED by students for admin approval
+    // 📄 Applications submitted for admin approval
     $applications = Application::with([
         'student',
         'internship.company',
@@ -39,12 +41,20 @@ class DashboardController extends Controller
         ->latest()
         ->get();
 
+    // 🆕 Pending internships waiting for admin approval
+    $pendingInternships = Internship::with('company')
+        ->where('status', 'pending')
+        ->latest()
+        ->get();
+
     return view('admin.dashboard', compact(
         'students',
         'applications',
+        'pendingInternships',
         'notifications'
     ));
 }
+
 
 
     public function approve(Application $application)
@@ -110,4 +120,39 @@ class DashboardController extends Controller
 
         return view('admin.students.show', compact('student'));
     }
+
+    public function approveInternship(Internship $internship)
+{
+    if ($internship->status !== 'pending') {
+        return back()->withErrors(['Internship already reviewed.']);
+    }
+
+    $internship->update([
+        'status' => 'approved',
+    ]);
+
+    // 🔔 Notify company
+    $internship->company->user->notify(
+        new InternshipStatusChanged($internship)
+    );
+
+    return back()->with('success', 'Internship approved successfully.');
+}
+
+public function rejectInternship(Internship $internship)
+{
+    if ($internship->status !== 'pending') {
+        return back()->withErrors(['Internship already reviewed.']);
+    }
+
+    $internship->update([
+        'status' => 'rejected',
+    ]);
+
+    $internship->company->user->notify(
+        new InternshipStatusChanged($internship)
+    );
+
+    return back()->with('success', 'Internship rejected.');
+}
 }

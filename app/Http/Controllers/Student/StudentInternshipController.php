@@ -26,7 +26,8 @@ class StudentInternshipController extends Controller
             ->exists();
 
         // 📄 Internships + company
-        $query = Internship::with('company');
+        $query = Internship::with('company')
+        ->where('status', 'approved');
 
         // Optional filters
         if ($request->filled('course')) {

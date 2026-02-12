@@ -18,7 +18,9 @@ return new class extends Migration
             $table->foreignId('company_id')
                 ->constrained()
                 ->onDelete('cascade');
-
+            
+                $table->string('status')
+                  ->default('pending');   
             // Core info
             $table->string('job_name');                 // Short title (e.g. Internship 2026)
             $table->string('position');           // Backend Developer Intern
